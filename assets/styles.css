@@ -101,17 +101,21 @@ p {
 label {
   display: block;
   margin-top: 15px;
+  margin-bottom: 8px;
   font-weight: bold;
   color: #003366;
+  font-size: 1.1em;
 }
 
 input, select {
   width: 100%;
-  padding: 10px;
+  padding: 16px 20px;
   margin-top: 5px;
   border-radius: 8px;
   border: 1px solid #ccc;
   background-color: #f0fcff;
+  font-size: 1.1em;
+  min-height: 50px;
 }
 
 /* 🎯 Action buttons */

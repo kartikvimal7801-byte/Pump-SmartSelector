@@ -1413,15 +1413,25 @@ class PumpDatabase {
         const request = store.delete(fileId);
 
         request.onsuccess = async () => {
-          this._log('info', 'Database file deleted', { id: fileId });
+          this._log('info', 'Database file deleted locally', { id: fileId });
           
           // Delete from cloud
           if (typeof cloudSync !== 'undefined' && cloudSync.syncEnabled) {
             try {
-              await cloudSync.deleteFileFromCloud(fileId);
+              console.log('Attempting to delete from cloud, fileId:', fileId, 'type:', typeof fileId);
+              const deleted = await cloudSync.deleteFileFromCloud(fileId);
+              if (deleted) {
+                console.log('Successfully deleted from cloud');
+                this._log('info', 'Database file deleted from cloud', { id: fileId });
+              } else {
+                console.warn('Delete from cloud returned false');
+              }
             } catch (cloudError) {
-              console.warn('Failed to delete from cloud:', cloudError);
+              console.error('Failed to delete from cloud:', cloudError);
+              this._log('error', 'Failed to delete from cloud', cloudError);
             }
+          } else {
+            console.warn('Cloud sync not available for delete operation');
           }
           
           resolve(true);
