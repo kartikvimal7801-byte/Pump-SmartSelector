@@ -1,0 +1,524 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>View Database Files - Admin Panel</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(to right, #004080, #0073e6);
+      min-height: 100vh;
+      padding: 20px;
+    }
+
+    .database-container {
+      background-color: rgba(255, 255, 255, 0.95);
+      border-radius: 20px;
+      padding: 40px;
+      max-width: 1000px;
+      margin: 0 auto;
+      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+      animation: slideIn 0.5s ease-out;
+    }
+
+    @keyframes slideIn {
+      from {
+        opacity: 0;
+        transform: translateY(-20px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 30px;
+    }
+
+    .header h1 {
+      color: #003366;
+      font-size: 2em;
+    }
+
+    .back-button {
+      background-color: #ffcc00;
+      color: #003366;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 1em;
+      font-weight: bold;
+      transition: background-color 0.3s ease;
+    }
+
+    .back-button:hover {
+      background-color: #ffd633;
+    }
+
+    .file-list {
+      display: flex;
+      flex-direction: column;
+      gap: 15px;
+    }
+
+    .file-item {
+      background-color: #f9f9f9;
+      border: 2px solid #e0e0e0;
+      border-radius: 12px;
+      padding: 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      transition: all 0.3s ease;
+    }
+
+    .file-item.for-selection {
+      border-left: 4px solid #2196f3;
+    }
+
+    .file-item.for-spares {
+      border-left: 4px solid #ff9800;
+    }
+
+    .file-item.for-both {
+      border-left: 4px solid #9c27b0;
+    }
+
+    .file-info {
+      flex: 1;
+    }
+
+    .file-name {
+      font-size: 1.1em;
+      font-weight: 600;
+      color: #003366;
+      margin-bottom: 5px;
+    }
+
+    .file-meta {
+      font-size: 0.9em;
+      color: #666;
+    }
+
+    .file-status {
+      display: inline-block;
+      padding: 5px 12px;
+      border-radius: 12px;
+      font-size: 0.85em;
+      font-weight: 600;
+      margin-left: 10px;
+    }
+
+    .status-selection {
+      background-color: #2196f3;
+      color: white;
+    }
+
+    .status-spares {
+      background-color: #ff9800;
+      color: white;
+    }
+
+    .status-both {
+      background-color: #9c27b0;
+      color: white;
+    }
+
+    .status-none {
+      background-color: #9e9e9e;
+      color: white;
+    }
+
+    .file-actions {
+      display: flex;
+      gap: 10px;
+    }
+
+    .action-button {
+      padding: 10px 20px;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 0.9em;
+      font-weight: 600;
+      transition: all 0.3s ease;
+    }
+
+    .for-selection-button {
+      background-color: #2196f3;
+      color: white;
+    }
+
+    .for-selection-button:hover {
+      background-color: #1976d2;
+      transform: scale(1.05);
+    }
+
+    .for-selection-button.active {
+      background-color: #4caf50;
+    }
+
+    .for-spares-button {
+      background-color: #ff9800;
+      color: white;
+    }
+
+    .for-spares-button:hover {
+      background-color: #f57c00;
+      transform: scale(1.05);
+    }
+
+    .for-spares-button.active {
+      background-color: #4caf50;
+    }
+
+    .view-button {
+      background-color: #2196f3;
+      color: white;
+    }
+
+    .view-button:hover {
+      background-color: #1976d2;
+      transform: scale(1.05);
+    }
+
+    .delete-button {
+      background-color: #f44336;
+      color: white;
+    }
+
+    .delete-button:hover {
+      background-color: #d32f2f;
+      transform: scale(1.05);
+    }
+
+
+    .no-files {
+      text-align: center;
+      padding: 40px;
+      color: #666;
+      font-size: 1.1em;
+    }
+
+    .loading {
+      text-align: center;
+      padding: 40px;
+      color: #003366;
+      font-size: 1.1em;
+    }
+
+    .error-message {
+      background-color: #ffebee;
+      color: #c62828;
+      padding: 12px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+      font-size: 0.9em;
+      display: none;
+      border-left: 4px solid #c62828;
+    }
+
+    .error-message.show {
+      display: block;
+    }
+
+    .success-message {
+      background-color: #e8f5e9;
+      color: #2e7d32;
+      padding: 12px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+      font-size: 0.9em;
+      display: none;
+      border-left: 4px solid #2e7d32;
+    }
+
+    .success-message.show {
+      display: block;
+    }
+  </style>
+</head>
+<body>
+  <div class="database-container">
+    <div class="header">
+      <h1>👁️ Database Files</h1>
+      <button class="back-button" onclick="window.location.href='admin-panel.html'">← Back</button>
+    </div>
+
+    <div class="error-message" id="errorMessage"></div>
+    <div class="success-message" id="successMessage"></div>
+
+    <div id="filesContent">
+      <div class="loading">Loading database files...</div>
+    </div>
+  </div>
+
+  <script src="scripts/database.js"></script>
+  <script src="scripts/auth.js"></script>
+  <script>
+    // Check if user is admin
+    window.addEventListener('DOMContentLoaded', async () => {
+      if (!authManager.isAdmin()) {
+        alert('Access denied. Admin privileges required.');
+        window.location.href = 'index.html';
+        return;
+      }
+
+      await loadDatabaseFiles();
+    });
+
+    async function loadDatabaseFiles() {
+      try {
+        const files = await pumpDB.getAllDatabaseFiles();
+        const filesContent = document.getElementById('filesContent');
+
+        if (files.length === 0) {
+          filesContent.innerHTML = '<div class="no-files">No database files found. <a href="upload-database.html">Upload a file</a> to get started.</div>';
+          return;
+        }
+
+        let filesHTML = '<div class="file-list">';
+
+        files.forEach(file => {
+          const date = new Date(file.timestamp).toLocaleString();
+          const forSelection = file.forSelection || false;
+          const forSpares = file.forSpares || false;
+          
+          // Determine status badge
+          let statusClass = 'status-none';
+          let statusText = 'Not Assigned';
+          if (forSelection && forSpares) {
+            statusClass = 'status-both';
+            statusText = '✓ For Selection & Spares';
+          } else if (forSelection) {
+            statusClass = 'status-selection';
+            statusText = '✓ For Selection';
+          } else if (forSpares) {
+            statusClass = 'status-spares';
+            statusText = '✓ For Pump Spares';
+          }
+
+          // Determine item class
+          let itemClass = '';
+          if (forSelection && forSpares) {
+            itemClass = 'for-both';
+          } else if (forSelection) {
+            itemClass = 'for-selection';
+          } else if (forSpares) {
+            itemClass = 'for-spares';
+          }
+          
+          filesHTML += `
+            <div class="file-item ${itemClass}">
+              <div class="file-info">
+                <div class="file-name">
+                  ${file.fileName}
+                  <span class="file-status ${statusClass}">
+                    ${statusText}
+                  </span>
+                </div>
+                <div class="file-meta">
+                  Uploaded: ${date} | Type: ${file.fileType || 'json'}
+                </div>
+              </div>
+              <div class="file-actions">
+                <button class="action-button for-selection-button ${forSelection ? 'active' : ''}" onclick="toggleForSelection(${file.id})">
+                  ${forSelection ? '✓ For Selection' : 'For Selection'}
+                </button>
+                <button class="action-button for-spares-button ${forSpares ? 'active' : ''}" onclick="toggleForSpares(${file.id})">
+                  ${forSpares ? '✓ For Pump Spares' : 'For Pump Spares'}
+                </button>
+                <button class="action-button view-button" onclick="viewFile(${file.id})">View File</button>
+                <button class="action-button delete-button" onclick="deleteFile(${file.id}, '${file.fileName.replace(/'/g, "\\'")}')">Delete</button>
+              </div>
+            </div>
+          `;
+        });
+
+        filesHTML += '</div>';
+        filesContent.innerHTML = filesHTML;
+      } catch (error) {
+        console.error('Error loading database files:', error);
+        document.getElementById('filesContent').innerHTML = 
+          '<div class="no-files">Error loading files. Please try again.</div>';
+      }
+    }
+
+    async function toggleForSelection(fileId) {
+      try {
+        console.log('Toggling selection for file ID:', fileId);
+        const file = await pumpDB.getDatabaseFileById(fileId);
+        if (!file) {
+          showError('File not found.');
+          return;
+        }
+
+        console.log('Current file state:', {
+          id: file.id,
+          fileName: file.fileName,
+          forSelection: file.forSelection,
+          hasData: !!file.fileData,
+          dataLength: file.fileData ? file.fileData.length : 0
+        });
+
+        if (file.forSelection) {
+          console.log('Unassigning file from selection...');
+          await pumpDB.unassignFileFromSelection(fileId);
+          showSuccess('File unassigned from Selection.');
+        } else {
+          console.log('Assigning file for selection...');
+          const assignedFile = await pumpDB.assignFileForSelection(fileId);
+          console.log('Assignment result:', {
+            id: assignedFile.id,
+            fileName: assignedFile.fileName,
+            forSelection: assignedFile.forSelection,
+            hasData: !!assignedFile.fileData
+          });
+          
+          // Verify the assignment
+          const verifyFile = await pumpDB.getDatabaseFileById(fileId);
+          console.log('Verification after assignment:', {
+            id: verifyFile.id,
+            fileName: verifyFile.fileName,
+            forSelection: verifyFile.forSelection
+          });
+          
+          if (verifyFile.forSelection) {
+            showSuccess('File assigned for Selection! The Pump Selection page will now use this file.');
+          } else {
+            showError('Assignment may have failed. Please try again.');
+            console.error('Assignment verification failed - forSelection is still false');
+          }
+        }
+        await loadDatabaseFiles();
+      } catch (error) {
+        showError('Failed to update file assignment. Please try again.');
+        console.error('Error toggling selection assignment:', error);
+        console.error('Error details:', {
+          message: error.message,
+          stack: error.stack,
+          name: error.name
+        });
+      }
+    }
+
+    async function toggleForSpares(fileId) {
+      try {
+        const file = await pumpDB.getDatabaseFileById(fileId);
+        if (!file) {
+          showError('File not found.');
+          return;
+        }
+
+        if (file.forSpares) {
+          await pumpDB.unassignFileFromSpares(fileId);
+          showSuccess('File unassigned from Pump Spares.');
+        } else {
+          await pumpDB.assignFileForSpares(fileId);
+          showSuccess('File assigned for Pump Spares!');
+        }
+        await loadDatabaseFiles();
+      } catch (error) {
+        showError('Failed to update file assignment. Please try again.');
+        console.error('Error toggling spares assignment:', error);
+      }
+    }
+
+    async function viewFile(fileId) {
+      try {
+        const file = await pumpDB.getDatabaseFileById(fileId);
+        if (!file) {
+          showError('File not found.');
+          return;
+        }
+
+        // Parse JSON and display in new window
+        try {
+          const jsonData = JSON.parse(file.fileData);
+          const jsonString = JSON.stringify(jsonData, null, 2);
+          
+          // Create a new window with the JSON data
+          const newWindow = window.open('', '_blank');
+          newWindow.document.write(`
+            <html>
+              <head>
+                <title>${file.fileName}</title>
+                <style>
+                  body {
+                    font-family: monospace;
+                    padding: 20px;
+                    background-color: #f5f5f5;
+                  }
+                  pre {
+                    background-color: white;
+                    padding: 20px;
+                    border-radius: 8px;
+                    overflow-x: auto;
+                  }
+                </style>
+              </head>
+              <body>
+                <h1>${file.fileName}</h1>
+                <pre>${jsonString}</pre>
+              </body>
+            </html>
+          `);
+        } catch (e) {
+          showError('Failed to parse JSON file.');
+        }
+      } catch (error) {
+        showError('Failed to load file. Please try again.');
+        console.error('Error viewing file:', error);
+      }
+    }
+
+    function showError(message) {
+      const errorMessage = document.getElementById('errorMessage');
+      errorMessage.textContent = message;
+      errorMessage.classList.add('show');
+      setTimeout(() => {
+        errorMessage.classList.remove('show');
+      }, 5000);
+    }
+
+    function showSuccess(message) {
+      const successMessage = document.getElementById('successMessage');
+      successMessage.textContent = message;
+      successMessage.classList.add('show');
+      setTimeout(() => {
+        successMessage.classList.remove('show');
+      }, 3000);
+    }
+
+    async function deleteFile(fileId, fileName) {
+      // Confirm deletion
+      if (!confirm(`Are you sure you want to delete "${fileName}"?\n\nThis action cannot be undone.`)) {
+        return;
+      }
+
+      try {
+        await pumpDB.deleteDatabaseFile(fileId);
+        showSuccess('File deleted successfully!');
+        await loadDatabaseFiles();
+      } catch (error) {
+        showError('Failed to delete file. Please try again.');
+        console.error('Error deleting file:', error);
+      }
+    }
+
+  </script>
+</body>
+</html>
+
