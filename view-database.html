@@ -329,6 +329,15 @@
         return;
       }
 
+      // Force a sync when page loads to get latest from cloud
+      if (typeof cloudSync !== 'undefined' && cloudSync.syncEnabled && typeof pumpDB !== 'undefined') {
+        try {
+          await cloudSync.syncFromCloudToLocal(pumpDB);
+        } catch (error) {
+          console.warn('Sync on page load failed:', error);
+        }
+      }
+      
       await loadDatabaseFiles();
     });
 

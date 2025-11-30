@@ -223,23 +223,35 @@ class CloudSync {
         localMap.set(file.id, file);
       });
 
-      // Get all cloud file IDs
-      const cloudFileIds = new Set(cloudFiles.map(f => f.id.toString()));
+      // Get all cloud file IDs (normalize to strings for comparison)
+      const cloudFileIds = new Set();
+      cloudFiles.forEach(f => {
+        // Handle both string and number IDs
+        const id = f.id ? f.id.toString() : null;
+        if (id) cloudFileIds.add(id);
+      });
+      
+      console.log('Cloud file IDs:', Array.from(cloudFileIds));
+      console.log('Local files count:', localFiles.length);
       
       // Delete local files that don't exist in cloud (were deleted on another device)
       for (const localFile of localFiles) {
-        const localFileIdStr = localFile.id.toString();
-        if (!cloudFileIds.has(localFileIdStr)) {
+        const localFileIdStr = localFile.id ? localFile.id.toString() : null;
+        if (localFileIdStr && !cloudFileIds.has(localFileIdStr)) {
           // File exists locally but not in cloud - delete it
+          console.log('File deleted from cloud, removing from local:', localFile.fileName, 'ID:', localFileIdStr);
           const transaction = pumpDB.db.transaction(['databaseFiles'], 'readwrite');
           const store = transaction.objectStore('databaseFiles');
           await new Promise((resolve, reject) => {
             const deleteReq = store.delete(localFile.id);
             deleteReq.onsuccess = () => {
-              console.log('Deleted local file (removed from cloud):', localFile.fileName);
+              console.log('Successfully deleted local file (removed from cloud):', localFile.fileName);
               resolve();
             };
-            deleteReq.onerror = () => reject(deleteReq.error);
+            deleteReq.onerror = (e) => {
+              console.error('Error deleting local file:', e);
+              reject(deleteReq.error);
+            };
           });
         }
       }
