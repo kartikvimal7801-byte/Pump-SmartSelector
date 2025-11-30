@@ -939,10 +939,21 @@ class PumpDatabase {
 
         const request = store.add(dbFile);
 
-        request.onsuccess = () => {
+        request.onsuccess = async () => {
           const fileId = request.result;
+          const savedFile = { id: fileId, ...dbFile };
           this._log('info', 'Database file saved', { id: fileId, fileName });
-          resolve({ id: fileId, ...dbFile });
+          
+          // Sync to cloud if available
+          if (typeof cloudSync !== 'undefined' && cloudSync.syncEnabled) {
+            try {
+              await cloudSync.saveDatabaseFileToCloud(savedFile);
+            } catch (cloudError) {
+              console.warn('Failed to sync to cloud (will retry later):', cloudError);
+            }
+          }
+          
+          resolve(savedFile);
         };
 
         request.onerror = () => {
@@ -960,6 +971,15 @@ class PumpDatabase {
   // Get all database files
   async getAllDatabaseFiles() {
     if (!this.db) await this.init();
+
+    // Try to sync from cloud first
+    if (typeof cloudSync !== 'undefined' && cloudSync.syncEnabled) {
+      try {
+        await cloudSync.syncFromCloudToLocal(this);
+      } catch (error) {
+        console.warn('Cloud sync failed, using local data:', error);
+      }
+    }
 
     return new Promise((resolve, reject) => {
       const transaction = this.db.transaction(['databaseFiles'], 'readonly');
@@ -981,6 +1001,15 @@ class PumpDatabase {
   // Get database file for selection
   async getDatabaseFileForSelection() {
     if (!this.db) await this.init();
+
+    // Try to sync from cloud first
+    if (typeof cloudSync !== 'undefined' && cloudSync.syncEnabled) {
+      try {
+        await cloudSync.syncFromCloudToLocal(this);
+      } catch (error) {
+        console.warn('Cloud sync failed, using local data:', error);
+      }
+    }
 
     return new Promise((resolve, reject) => {
       try {
@@ -1116,13 +1145,30 @@ class PumpDatabase {
 
             const assignRequest = store.put(fileToAssign);
 
-            assignRequest.onsuccess = () => {
+            assignRequest.onsuccess = async () => {
               console.log('Assignment saved successfully');
               self._log('info', 'Database file assigned for selection', { 
                 id: fileId, 
                 fileName: fileToAssign.fileName,
                 forSelection: fileToAssign.forSelection
               });
+              
+              // Sync to cloud
+              if (typeof cloudSync !== 'undefined' && cloudSync.syncEnabled) {
+                try {
+                  // Unassign all others in cloud
+                  const allFiles = await self.getAllDatabaseFiles();
+                  for (const file of allFiles) {
+                    if (file.id !== fileId && file.forSelection) {
+                      await cloudSync.updateFileAssignmentInCloud(file.id, { forSelection: false });
+                    }
+                  }
+                  // Update current file in cloud
+                  await cloudSync.updateFileAssignmentInCloud(fileId, { forSelection: true });
+                } catch (cloudError) {
+                  console.warn('Failed to sync assignment to cloud:', cloudError);
+                }
+              }
               
               // Verify immediately
               const verifyRequest = store.get(fileId);
@@ -1262,8 +1308,25 @@ class PumpDatabase {
         fileToAssign.assignedForSparesAt = Date.now();
         const assignRequest = store.put(fileToAssign);
 
-        assignRequest.onsuccess = () => {
+        assignRequest.onsuccess = async () => {
           this._log('info', 'Database file assigned for spares', { id: fileId, fileName: fileToAssign.fileName });
+          
+          // Sync to cloud
+          if (typeof cloudSync !== 'undefined' && cloudSync.syncEnabled) {
+            try {
+              // Unassign all others in cloud
+              for (const file of allFiles) {
+                if (file.id !== fileId && file.forSpares) {
+                  await cloudSync.updateFileAssignmentInCloud(file.id, { forSpares: false });
+                }
+              }
+              // Update current file in cloud
+              await cloudSync.updateFileAssignmentInCloud(fileId, { forSpares: true });
+            } catch (cloudError) {
+              console.warn('Failed to sync assignment to cloud:', cloudError);
+            }
+          }
+          
           resolve(fileToAssign);
         };
 
@@ -1346,8 +1409,18 @@ class PumpDatabase {
         const store = transaction.objectStore('databaseFiles');
         const request = store.delete(fileId);
 
-        request.onsuccess = () => {
+        request.onsuccess = async () => {
           this._log('info', 'Database file deleted', { id: fileId });
+          
+          // Delete from cloud
+          if (typeof cloudSync !== 'undefined' && cloudSync.syncEnabled) {
+            try {
+              await cloudSync.deleteFileFromCloud(fileId);
+            } catch (cloudError) {
+              console.warn('Failed to delete from cloud:', cloudError);
+            }
+          }
+          
           resolve(true);
         };
 

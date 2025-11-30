@@ -265,8 +265,49 @@
     </div>
   </div>
 
+  <!-- Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+  
+  <script src="scripts/cloud-sync.js"></script>
   <script src="scripts/database.js"></script>
   <script src="scripts/auth.js"></script>
+  
+  <script>
+    // Initialize Firebase and Cloud Sync
+    window.addEventListener('DOMContentLoaded', async () => {
+      // Firebase config
+      const firebaseConfig = {
+        apiKey: "AIzaSyDZLujiFxX-BJ98bRiNKv5VYYYfpwG0Yn4",
+        authDomain: "pumpselector-74a7a.firebaseapp.com",
+        projectId: "pumpselector-74a7a",
+        storageBucket: "pumpselector-74a7a.firebasestorage.app",
+        messagingSenderId: "189246777584",
+        appId: "1:189246777584:web:a4165d94ee76283d3dba35",
+        measurementId: "G-WMD6QW8670"
+      };
+      
+      // Initialize cloud sync
+      if (typeof cloudSync !== 'undefined') {
+        cloudSync.setConfig(firebaseConfig);
+        await cloudSync.init();
+        
+        // Sync from cloud on page load
+        if (cloudSync.syncEnabled && typeof pumpDB !== 'undefined') {
+          try {
+            await pumpDB.init();
+            await cloudSync.syncFromCloudToLocal(pumpDB);
+            // Reload files after sync
+            if (typeof loadDatabaseFiles === 'function') {
+              await loadDatabaseFiles();
+            }
+          } catch (error) {
+            console.warn('Cloud sync failed:', error);
+          }
+        }
+      }
+    });
+  </script>
   <script>
     // Check if user is admin
     window.addEventListener('DOMContentLoaded', async () => {

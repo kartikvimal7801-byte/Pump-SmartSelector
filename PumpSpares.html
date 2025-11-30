@@ -4,8 +4,35 @@
   <meta charset="UTF-8">
   <title>Pump Spares</title>
   <link rel="stylesheet" href="assets/styles.css">
+  <!-- Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+  
+  <script src="scripts/cloud-sync.js"></script>
   <script src="scripts/database.js" defer></script>
   <script src="scripts/PumpSpares.js" defer></script>
+  
+  <script>
+    // Initialize Firebase and Cloud Sync
+    window.addEventListener('DOMContentLoaded', async () => {
+      // Firebase config
+      const firebaseConfig = {
+        apiKey: "AIzaSyDZLujiFxX-BJ98bRiNKv5VYYYfpwG0Yn4",
+        authDomain: "pumpselector-74a7a.firebaseapp.com",
+        projectId: "pumpselector-74a7a",
+        storageBucket: "pumpselector-74a7a.firebasestorage.app",
+        messagingSenderId: "189246777584",
+        appId: "1:189246777584:web:a4165d94ee76283d3dba35",
+        measurementId: "G-WMD6QW8670"
+      };
+      
+      // Initialize cloud sync
+      if (typeof cloudSync !== 'undefined') {
+        cloudSync.setConfig(firebaseConfig);
+        await cloudSync.init();
+      }
+    });
+  </script>
   <style>
     .back-button {
       position: absolute;
