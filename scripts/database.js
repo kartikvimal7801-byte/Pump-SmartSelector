@@ -969,15 +969,18 @@ class PumpDatabase {
   }
 
   // Get all database files
-  async getAllDatabaseFiles() {
+  async getAllDatabaseFiles(skipCloudSync = false) {
     if (!this.db) await this.init();
 
-    // Try to sync from cloud first
-    if (typeof cloudSync !== 'undefined' && cloudSync.syncEnabled) {
+    // Try to sync from cloud first (only if not skipped)
+    if (!skipCloudSync && typeof cloudSync !== 'undefined' && cloudSync.syncEnabled && !this._syncing) {
+      this._syncing = true;
       try {
         await cloudSync.syncFromCloudToLocal(this);
       } catch (error) {
         console.warn('Cloud sync failed, using local data:', error);
+      } finally {
+        this._syncing = false;
       }
     }
 

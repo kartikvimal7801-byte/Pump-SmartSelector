@@ -292,17 +292,29 @@
         cloudSync.setConfig(firebaseConfig);
         await cloudSync.init();
         
-        // Sync from cloud on page load
+        // Sync from cloud on page load (only once)
         if (cloudSync.syncEnabled && typeof pumpDB !== 'undefined') {
           try {
             await pumpDB.init();
             await cloudSync.syncFromCloudToLocal(pumpDB);
-            // Reload files after sync
+            // Reload files after sync (skip cloud sync to prevent loop)
             if (typeof loadDatabaseFiles === 'function') {
-              await loadDatabaseFiles();
+              // Small delay to ensure sync completes
+              setTimeout(() => {
+                loadDatabaseFiles();
+              }, 500);
             }
           } catch (error) {
             console.warn('Cloud sync failed:', error);
+            // Still load files even if sync fails
+            if (typeof loadDatabaseFiles === 'function') {
+              loadDatabaseFiles();
+            }
+          }
+        } else {
+          // Load files even if cloud sync is not enabled
+          if (typeof loadDatabaseFiles === 'function') {
+            loadDatabaseFiles();
           }
         }
       }
@@ -322,7 +334,8 @@
 
     async function loadDatabaseFiles() {
       try {
-        const files = await pumpDB.getAllDatabaseFiles();
+        // Skip cloud sync to prevent infinite loop (sync happens on page load)
+        const files = await pumpDB.getAllDatabaseFiles(true);
         const filesContent = document.getElementById('filesContent');
 
         if (files.length === 0) {

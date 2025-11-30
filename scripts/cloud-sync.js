@@ -195,10 +195,19 @@ class CloudSync {
       return;
     }
 
+    // Prevent multiple simultaneous syncs
+    if (this._syncing) {
+      console.log('Sync already in progress, skipping...');
+      return;
+    }
+
+    this._syncing = true;
+
     try {
       console.log('Syncing files from cloud to local...');
       const cloudFiles = await this.getAllDatabaseFilesFromCloud();
-      const localFiles = await pumpDB.getAllDatabaseFiles();
+      // Skip cloud sync to prevent infinite loop
+      const localFiles = await pumpDB.getAllDatabaseFiles(true);
 
       // Create a map of local files by ID
       const localMap = new Map();
@@ -238,6 +247,8 @@ class CloudSync {
       console.log('Cloud sync to local completed');
     } catch (error) {
       console.error('Failed to sync from cloud to local:', error);
+    } finally {
+      this._syncing = false;
     }
   }
 
