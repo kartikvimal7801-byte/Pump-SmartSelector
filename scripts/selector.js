@@ -1654,6 +1654,119 @@ function togglePumpStages() {
     const series = combination['Series'] || combination['series'] || null;
     const power = combination['Power'] || combination['power'] || combination['Power (KW)'] || null;
     
+    // Extract image from column S (could be named "S", "Column S", "Image", etc.)
+    let pumpImage = null;
+    let imageColumnName = null;
+    const allKeys = Object.keys(combination);
+    
+    console.log('   🔍 Searching for image column (Column S)...');
+    console.log('   Available columns:', allKeys);
+    
+    // Look for column S - try various naming patterns
+    for (const key of allKeys) {
+      const trimmedKey = key.trim();
+      const lowerKey = trimmedKey.toLowerCase();
+      
+      // Check if this is column S (exact match or contains 's' as column identifier)
+      // Also check for image-related column names
+      const isColumnS = trimmedKey === 'S' || 
+                        lowerKey === 's' || 
+                        lowerKey === 'column s' || 
+                        lowerKey === 'columns' ||
+                        trimmedKey === 'Column S' ||
+                        trimmedKey === 'COLUMN S' ||
+                        trimmedKey === ' S ' ||
+                        (lowerKey.includes('image') && !lowerKey.includes('combination'));
+      
+      if (isColumnS) {
+        const value = combination[key];
+        console.log(`   Checking column "${key}":`, value, `(type: ${typeof value})`);
+        
+        if (value !== null && value !== undefined && value !== '') {
+          const stringValue = String(value).trim();
+          if (stringValue !== '' && stringValue !== 'null' && stringValue !== 'undefined') {
+            pumpImage = stringValue;
+            imageColumnName = key;
+            console.log(`   ✅ Found pump image in column "${key}": "${pumpImage}"`);
+            break;
+          } else {
+            console.log(`   ⚠️ Column "${key}" exists but value is empty or invalid`);
+          }
+        }
+      }
+    }
+    
+    if (!pumpImage) {
+      console.log('   ⚠️ No image found in column S. Available columns:', allKeys);
+    }
+    
+    // Extract columns K-S (all columns except matching fields, Model, HP, SKU, and Image column S)
+    const excludedColumns = new Set([
+      'Purpose', 'purpose', 'PURPOSE',
+      'Location', 'location', 'LOCATION',
+      'Source', 'source', 'SOURCE',
+      'Water Level', 'WaterLevel', 'waterLevel', 'water level', 'WATER LEVEL',
+      'Delivery', 'delivery', 'DELIVERY',
+      'Custom Height', 'CustomHeight', 'customHeight', 'custom height', 'CUSTOM HEIGHT',
+      'Usage', 'usage', 'USAGE',
+      'Phase', 'phase', 'PHASE',
+      'Quality', 'quality', 'QUALITY',
+      'Combination #', 'Combination', 'combination', 'Combination Number',
+      'MODEL', 'Model', 'model', 'Model Name', 'ModelName', ' MODEL ', ' MODEL', 'MODEL ',
+      'HP', 'hp', 'Horsepower', 'horsepower', 'HORSEPOWER', ' HP ', ' HP', 'HP ',
+      'SKU', 'sku', 'Sku', ' SKU ', ' SKU', 'SKU '
+    ]);
+    
+    // Get all additional columns (K-S or any other columns, excluding the image column)
+    const additionalColumns = [];
+    
+    allKeys.forEach(key => {
+      const trimmedKey = key.trim();
+      const lowerKey = trimmedKey.toLowerCase();
+      
+      // Skip the image column (column S) - it will be displayed separately
+      if (key === imageColumnName || trimmedKey === 'S' || lowerKey === 's' || lowerKey === 'column s') {
+        return;
+      }
+      
+      // Check if this column should be excluded
+      let isExcluded = false;
+      excludedColumns.forEach(excluded => {
+        if (lowerKey === excluded.toLowerCase() || lowerKey.includes(excluded.toLowerCase())) {
+          // Special check for Model and HP
+          if (excluded.toLowerCase().includes('model') && lowerKey.includes('model')) {
+            isExcluded = true;
+          } else if (excluded.toLowerCase().includes('hp') && (lowerKey === 'hp' || lowerKey === 'horsepower')) {
+            isExcluded = true;
+          } else if (lowerKey === excluded.toLowerCase()) {
+            isExcluded = true;
+          }
+        }
+      });
+      
+      // Also exclude if it's a matching field
+      const matchingFields = ['purpose', 'location', 'source', 'water', 'delivery', 'custom', 'usage', 'phase', 'quality', 'combination'];
+      if (matchingFields.some(field => lowerKey.includes(field))) {
+        isExcluded = true;
+      }
+      
+      if (!isExcluded) {
+        const value = combination[key];
+        if (value !== null && value !== undefined && value !== '') {
+          const stringValue = String(value).trim();
+          if (stringValue !== '' && stringValue !== 'null' && stringValue !== 'undefined') {
+            additionalColumns.push({
+              name: key,
+              value: stringValue
+            });
+          }
+        }
+      }
+    });
+    
+    // Sort columns alphabetically for consistent display
+    additionalColumns.sort((a, b) => a.name.localeCompare(b.name));
+    
     return `
       <div style="background: linear-gradient(135deg, #e8f5e9, #c8e6c9); padding: 25px; border-radius: 12px; margin-top: 20px; border-left: 5px solid #4caf50;">
         <div style="text-align: center; margin-bottom: 20px;">
@@ -1670,6 +1783,20 @@ function togglePumpStages() {
               ${model}
             </h2>
           </div>
+          
+          <!-- Pump Image from Column S -->
+          ${pumpImage ? `
+            <div style="background: linear-gradient(135deg, #fff3e0, #ffe0b2); padding: 20px; border-radius: 10px; margin-bottom: 15px; border: 2px solid #ff9800; text-align: center;">
+              <h4 style="color: #e65100; margin-bottom: 15px; font-size: 1.2em;">🖼️ Pump Image</h4>
+              <div style="background: white; padding: 15px; border-radius: 8px; display: inline-block; max-width: 100%;">
+                <img src="${pumpImage}" alt="Pump Model ${model}" style="max-width: 100%; max-height: 400px; height: auto; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.2);" 
+                     onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+                <div style="display: none; color: #f44336; padding: 10px;">
+                  ⚠️ Image not found: ${pumpImage}
+                </div>
+              </div>
+            </div>
+          ` : ''}
           
           <!-- Model, HP, and SKU displayed prominently -->
           <div style="background: linear-gradient(135deg, #f1f8e9, #e8f5e9); padding: 20px; border-radius: 10px; margin-bottom: 15px; border: 2px solid #4caf50;">
@@ -1701,6 +1828,24 @@ function togglePumpStages() {
                 ${productCode ? `<div><strong>Product Code:</strong> ${productCode}</div>` : ''}
                 ${series ? `<div><strong>Series:</strong> ${series}</div>` : ''}
                 ${power ? `<div><strong>Power:</strong> ${power}</div>` : ''}
+              </div>
+            </div>
+          ` : ''}
+          
+          ${additionalColumns.length > 0 ? `
+            <div style="background: linear-gradient(135deg, #e3f2fd, #bbdefb); padding: 20px; border-radius: 10px; margin-bottom: 15px; border: 2px solid #2196f3;">
+              <h4 style="color: #1565c0; margin-bottom: 15px; text-align: center; font-size: 1.1em;">📊 Additional Product Specifications</h4>
+              <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 12px;">
+                ${additionalColumns.map(col => `
+                  <div style="background: white; padding: 12px; border-radius: 8px; border-left: 3px solid #2196f3; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+                    <div style="font-weight: 600; color: #1565c0; margin-bottom: 5px; font-size: 0.9em;">
+                      ${col.name}
+                    </div>
+                    <div style="color: #333; font-size: 0.95em; word-break: break-word;">
+                      ${col.value}
+                    </div>
+                  </div>
+                `).join('')}
               </div>
             </div>
           ` : ''}
