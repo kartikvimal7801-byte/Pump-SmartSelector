@@ -204,6 +204,16 @@
       transform: scale(1.05);
     }
 
+    .download-button {
+      background-color: #4caf50;
+      color: white;
+    }
+
+    .download-button:hover {
+      background-color: #45a049;
+      transform: scale(1.05);
+    }
+
 
     .no-files {
       text-align: center;
@@ -268,6 +278,9 @@
   <!-- Firebase SDK -->
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+  
+  <!-- SheetJS library for Excel export -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
   
   <script src="scripts/cloud-sync.js"></script>
   <script src="scripts/database.js"></script>
@@ -404,6 +417,9 @@
                   ${forSpares ? '✓ For Pump Spares' : 'For Pump Spares'}
                 </button>
                 <button class="action-button view-button" onclick="viewFile(${file.id})">View File</button>
+                <button class="action-button download-button" onclick="downloadFileAsXLSX(${file.id}, '${file.fileName.replace(/'/g, "\\'")}')" title="Download as Excel (.xlsx)">
+                  📥 Download XLSX
+                </button>
                 <button class="action-button delete-button" onclick="deleteFile(${file.id}, '${file.fileName.replace(/'/g, "\\'")}')">Delete</button>
               </div>
             </div>
@@ -563,6 +579,98 @@
       setTimeout(() => {
         successMessage.classList.remove('show');
       }, 3000);
+    }
+
+    async function downloadFileAsXLSX(fileId, fileName) {
+      try {
+        const file = await pumpDB.getDatabaseFileById(fileId);
+        if (!file) {
+          showError('File not found.');
+          return;
+        }
+
+        if (!file.fileData) {
+          showError('File has no data to download.');
+          return;
+        }
+
+        // Parse JSON data
+        let jsonData;
+        try {
+          jsonData = JSON.parse(file.fileData);
+        } catch (e) {
+          showError('Failed to parse file data. File may not be in JSON format.');
+          return;
+        }
+
+        // Convert JSON array to Excel format
+        // If data is an array of objects, use it directly
+        // If first element is a header row, separate it
+        let dataArray = jsonData;
+        let headers = null;
+
+        if (Array.isArray(jsonData) && jsonData.length > 0) {
+          // Check if first row looks like headers (all string values, no numbers)
+          const firstRow = jsonData[0];
+          if (typeof firstRow === 'object' && firstRow !== null) {
+            const firstRowValues = Object.values(firstRow);
+            const allStrings = firstRowValues.every(val => typeof val === 'string');
+            
+            // If first row looks like headers, use it as headers and skip it
+            if (allStrings && jsonData.length > 1) {
+              headers = Object.keys(firstRow);
+              dataArray = jsonData.slice(1);
+            } else {
+              // Use keys from first object as headers
+              headers = Object.keys(firstRow);
+            }
+          }
+        } else if (typeof jsonData === 'object' && jsonData !== null) {
+          // Single object - convert to array
+          dataArray = [jsonData];
+          headers = Object.keys(jsonData);
+        } else {
+          showError('File format not supported for Excel export.');
+          return;
+        }
+
+        // Create workbook
+        const wb = XLSX.utils.book_new();
+        
+        // Convert array of objects to worksheet
+        const ws = XLSX.utils.json_to_sheet(dataArray, { header: headers });
+        
+        // Add worksheet to workbook
+        XLSX.utils.book_append_sheet(wb, ws, 'Sheet1');
+        
+        // Generate Excel file
+        const excelBuffer = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+        
+        // Create blob and download
+        const blob = new Blob([excelBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        
+        // Generate filename (replace .json with .xlsx if needed)
+        let downloadFileName = fileName;
+        if (downloadFileName.toLowerCase().endsWith('.json')) {
+          downloadFileName = downloadFileName.replace(/\.json$/i, '.xlsx');
+        } else if (!downloadFileName.toLowerCase().endsWith('.xlsx')) {
+          downloadFileName = downloadFileName + '.xlsx';
+        }
+        
+        link.download = downloadFileName;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(url);
+        
+        showSuccess(`File "${downloadFileName}" downloaded successfully!`);
+      } catch (error) {
+        showError('Failed to download file. Please try again.');
+        console.error('Error downloading file:', error);
+      }
     }
 
     async function deleteFile(fileId, fileName) {
